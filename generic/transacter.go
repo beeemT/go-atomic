@@ -1,3 +1,5 @@
+// Package generic implements a generic Transacter which is compatible with a wide range of
+// executors for different data sources.
 package generic
 
 import (
@@ -27,14 +29,25 @@ type (
 		backoffs []time.Duration
 	}
 
+	// Session models all info passed from transacter through context to other nested
+	// Transact calls.
 	Session[Remote any] struct {
 		Tx Remote
 	}
 
+	// Executer models the handler for the remote specific transaction logic.
+	// A call to execute should:
+	// - Open a new transaction
+	// - Run the provided function
+	// - On error roll back the transaction
+	// - On success commit the transaction
+	// The provided context is not passed down to the actual function that is executed,
+	// changes or additions to the context in Execute are not propagated.
 	Executer[Remote any] interface {
 		Execute(context.Context, func(Remote) error) error
 	}
 
+	// TransacterOption is used to configure a Transacter.
 	TransacterOption[Remote any, Resources any] func(*Transacter[Remote, Resources])
 )
 
@@ -96,7 +109,7 @@ func (transacter Transacter[Remote, Resources]) Transact(
 			transacter.retry(
 				transacter.backoffs,
 				func() error {
-					return transacter.executer.Execute(
+					return transacter.executer.Execute( //nolint:wrapcheck //done outside closure
 						ctx,
 						transacter.inSession(ctx, run),
 					)

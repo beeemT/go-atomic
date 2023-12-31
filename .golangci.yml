@@ -93,6 +93,17 @@ linters-settings:
     line-length: 100
     tab-width: 4
 
+  depguard:
+    rules:
+      prevent_unmaintained_packages:
+        listMode: lax # allow unless explicitely denied
+        files:
+          - $all
+          - "!$test"
+        deny:
+          - pkg: io/ioutil
+            desc: "replaced by io and os packages since Go 1.16: https://tip.golang.org/doc/go1.16#ioutil"
+
   revive:
     rules:
       #- name: add-constant           # Suggests using constant for magic numbers and string literals

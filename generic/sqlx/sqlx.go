@@ -1,3 +1,4 @@
+// Package sqlx implements [generic.Executer] for the sqlx databases
 package sqlx
 
 import (
@@ -16,20 +17,24 @@ var (
 )
 
 type (
+	// Executer implements the [generic.Executer] interface for a sqlx db
 	Executer struct {
 		db     *sqlx.DB
 		txOpts *sql.TxOptions
 	}
 
+	// ExecuterOption configures the [Executer] instance
 	ExecuterOption func(*Executer)
 )
 
+// WithTxOptions allows setting the TxOptions to use when opening a new transaction
 func WithTxOptions(opts *sql.TxOptions) ExecuterOption {
 	return func(e *Executer) {
 		e.txOpts = opts
 	}
 }
 
+// NewExecuter creates a new Executer
 func NewExecuter(db *sqlx.DB, opts ...ExecuterOption) Executer {
 	executer := Executer{
 		db:     db,
@@ -43,6 +48,7 @@ func NewExecuter(db *sqlx.DB, opts ...ExecuterOption) Executer {
 	return executer
 }
 
+// Execute executes the provided function in a transaction
 func (executer Executer) Execute(ctx context.Context, run func(generic.SQLXRemote) error) error {
 	tx, err := executer.db.BeginTxx(ctx, executer.txOpts)
 	if err != nil {
@@ -54,7 +60,7 @@ func (executer Executer) Execute(ctx context.Context, run func(generic.SQLXRemot
 		err = errors.Wrap(err, "executing run")
 		innerErr := tx.Rollback()
 		if innerErr != nil {
-			return multierr.Append(
+			return multierr.Append( //nolint:wrapcheck //individual errors are wrapped
 				err,
 				errors.Wrap(innerErr, "rolling back sqlx tx"),
 			)

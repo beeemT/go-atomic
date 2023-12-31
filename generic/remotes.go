@@ -22,18 +22,18 @@ type (
 	// The exception to this rule is NamedQuery, as the sqlx project apparently refuses to
 	// include a contextualized version on sqlx.Tx (see: https://github.com/jmoiron/sqlx/issues/447)
 	SQLXRemote interface {
-		BindNamed(query string, arg interface{}) (string, []interface{}, error)
+		BindNamed(query string, arg any) (string, []any, error)
 		DriverName() string
-		GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
-		MustExecContext(ctx context.Context, query string, args ...interface{}) sql.Result
-		NamedExecContext(ctx context.Context, query string, arg interface{}) (sql.Result, error)
-		NamedQuery(query string, arg interface{}) (*sqlx.Rows, error)
+		GetContext(ctx context.Context, dest any, query string, args ...any) error
+		MustExecContext(ctx context.Context, query string, args ...any) sql.Result
+		NamedExecContext(ctx context.Context, query string, arg any) (sql.Result, error)
+		NamedQuery(query string, arg any) (*sqlx.Rows, error)
 		NamedStmtContext(ctx context.Context, stmt *sqlx.NamedStmt) *sqlx.NamedStmt
 		PrepareNamedContext(ctx context.Context, query string) (*sqlx.NamedStmt, error)
 		PreparexContext(ctx context.Context, query string) (*sqlx.Stmt, error)
-		QueryRowxContext(ctx context.Context, query string, args ...interface{}) *sqlx.Row
-		QueryxContext(ctx context.Context, query string, args ...interface{}) (*sqlx.Rows, error)
+		QueryRowxContext(ctx context.Context, query string, args ...any) *sqlx.Row
+		QueryxContext(ctx context.Context, query string, args ...any) (*sqlx.Rows, error)
 		Rebind(query string) string
-		SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
+		SelectContext(ctx context.Context, dest any, query string, args ...any) error
 	}
 )

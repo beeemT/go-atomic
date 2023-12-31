@@ -4,26 +4,31 @@ import (
 	"context"
 	stdlibsql "database/sql"
 
+	"github.com/beeemT/go-atomic"
 	"github.com/beeemT/go-atomic/generic"
 	"github.com/beeemT/go-atomic/generic/sql"
 	"github.com/pkg/errors"
 )
 
+// Resources is a registry struct holding all the repos we want to be managed and created
+// by the transacter.
 type Resources struct {
 	Foos FooRepo
 	Bars BarRepo
 }
 
+// Example shows an example flow of how to setup and use the transacter
 func Example() {
 	// Choose whichever executor fits your use case
-	sqlDb, err := stdlibsql.Open("postgres", "postgresql://user:password@localhost:5432/dbname")
+	sqlDB, err := stdlibsql.Open("postgres", "postgresql://user:password@localhost:5432/dbname")
 	if err != nil {
 		panic(err)
 	}
 
-	executor := sql.NewExecuter(sqlDb)
+	executor := sql.NewExecuter(sqlDB)
 
-	guard := generic.NewTransacter[generic.SQLRemote, Resources](
+	var guard atomic.Transacter[Resources] //nolint:gosimple // this if for example purposes
+	guard = generic.NewTransacter[generic.SQLRemote, Resources](
 		executor,
 		resourcesFactory,
 	)
@@ -55,8 +60,8 @@ func Example() {
 }
 
 func resourcesFactory(
-	ctx context.Context,
-	transacter *generic.Transacter[generic.SQLRemote, Resources],
+	_ context.Context,
+	_ *generic.Transacter[generic.SQLRemote, Resources],
 	tx generic.SQLRemote,
 ) (Resources, error) {
 	// it is also possible to define business services which in turn need a transacter themselves,

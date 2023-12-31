@@ -1,3 +1,4 @@
+// Package crdb implements [generic.Executer] for cockroachdb
 package crdb
 
 import (
@@ -16,20 +17,24 @@ var (
 )
 
 type (
+	// Executer implements the [generic.Executer] interface for cockroachdb with sqlx
 	Executer struct {
 		db     *sqlx.DB
 		txOpts *sql.TxOptions
 	}
 
+	// ExecuterOption configures the [Executer] instance
 	ExecuterOption func(*Executer)
 )
 
+// WithTxOptions allows setting the TxOptions to use when opening a new transaction
 func WithTxOptions(opts *sql.TxOptions) ExecuterOption {
 	return func(e *Executer) {
 		e.txOpts = opts
 	}
 }
 
+// NewExecuter creates a new Executer
 func NewExecuter(db *sqlx.DB, opts ...ExecuterOption) Executer {
 	executer := Executer{
 		db:     db,
@@ -43,6 +48,8 @@ func NewExecuter(db *sqlx.DB, opts ...ExecuterOption) Executer {
 	return executer
 }
 
+// Execute executes the provided function in a transaction with the cockroach retries on retryable
+// errors
 func (executer Executer) Execute(ctx context.Context, run func(generic.SQLXRemote) error) error {
 	return errors.Wrap(
 		crdb.ExecuteTx(

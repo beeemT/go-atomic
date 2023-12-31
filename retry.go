@@ -10,6 +10,7 @@ import (
 	"go.uber.org/multierr"
 )
 
+// DefaultBackoffs are the default backoffs for transacters
 var DefaultBackoffs = []time.Duration{
 	100 * time.Millisecond,
 	time.Second,
@@ -20,6 +21,12 @@ var DefaultBackoffs = []time.Duration{
 	5 * time.Minute,
 }
 
+// DefaultRetry is the default retry function for transacters.
+// It retries errors that are have one of the following errors in their chain:
+// - context.DeadlineExceeded
+// - net.ErrClosed
+// - os.ErrDeadlineExceeded
+// It retries for a maximum of len(backoffs) times.
 func DefaultRetry(backoffs []time.Duration, run func() error) error {
 	var (
 		i    int
@@ -35,7 +42,7 @@ func DefaultRetry(backoffs []time.Duration, run func() error) error {
 
 	if err != nil {
 		merr = multierr.Append(merr, errors.Wrapf(err, "try %d", i))
-		return errors.Wrap(err, "error not retryable or reached maximum number of retries")
+		return errors.Wrap(merr, "error not retryable or reached maximum number of retries")
 	}
 
 	return nil
