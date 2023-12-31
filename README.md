@@ -89,5 +89,5 @@ Released under the [MIT License](LICENSE.txt).
 [ci]: https://github.com/beeemT/go-atomic/actions/workflows/go.yml
 [cov-img]: https://codecov.io/gh/beeemT/go-atomic/branch/main/graph/badge.svg
 [cov]: https://codecov.io/gh/beeemT/go-atomic
-[reportcard-img]: https://goreportcard.com/badge/beeemT/go-atomic
-[reportcard]: https://goreportcard.com/report/beeemT/go-atomic
+[reportcard-img]: https://goreportcard.com/badge/github.com/beeemT/go-atomic
+[reportcard]: https://goreportcard.com/report/github.com/beeemT/go-atomic
