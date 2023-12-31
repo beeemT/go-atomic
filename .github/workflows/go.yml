@@ -46,7 +46,7 @@ jobs:
     - name: Test
       run: |
         go test -race -coverprofile=cover.out -v ./...
-	      go tool cover -html=cover.out -o cover.html
+        go tool cover -html=cover.out -o cover.html
 
     - name: Upload coverage to codecov.io
       uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3.1.4
