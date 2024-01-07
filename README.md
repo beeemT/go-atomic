@@ -1,6 +1,6 @@
 # go-atomic [![GoDoc][doc-img]][doc] [![Build Status][ci-img]][ci] [![Coverage Status][cov-img]][cov] [![Go Report Card][reportcard-img]][reportcard]
 
-A package enabling go business layers to define blocks of code accessing remote systems in a sql-transaction like way.
+A package enabling go business layers to define blocks of code accessing remote systems in a sql-transaction like way. Essentially this allows the use of the Unit of Work pattern with go repositories.
 
 ## Installation
 
