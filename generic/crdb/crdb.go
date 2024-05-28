@@ -6,7 +6,7 @@ import (
 	"database/sql"
 
 	"github.com/beeemT/go-atomic/generic"
-	crdb "github.com/cockroachdb/cockroach-go/crdb/crdbsqlx"
+	crdb "github.com/cockroachdb/cockroach-go/v2/crdb/crdbsqlx"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )

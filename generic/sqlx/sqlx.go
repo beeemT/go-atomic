@@ -65,6 +65,7 @@ func (executer Executer) Execute(ctx context.Context, run func(generic.SQLXRemot
 				errors.Wrap(innerErr, "rolling back sqlx tx"),
 			)
 		}
+
 		return err
 	}
 
