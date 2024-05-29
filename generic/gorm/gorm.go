@@ -1,3 +1,8 @@
+// Package gorm provides a way to integrate multiple different versions of gorm / potentially
+// other databases go-atomic if they implement the GormlikeDB interface. This can be achieved
+// by embedding the gorm.DB object in a struct which then implements the GormlikeDB interface.
+// As remote either the [generic.GormRemote] can be used or a custom interface definition which is
+// a subset of the methods offered by gorm.
 package gorm
 
 import (
@@ -9,6 +14,8 @@ import (
 )
 
 type (
+	// GormlikeDB is an interface that allows different versions of gorm or other similar db's to
+	// be used as executer for [generic.Transacter].
 	GormlikeDB[Remote any] interface {
 		Begin(...*sql.TxOptions) GormlikeDB[Remote]
 		Rollback() GormlikeDB[Remote]
@@ -28,14 +35,19 @@ type (
 )
 
 // WithTxOptions allows setting the TxOptions to use when opening a new transaction
-func WithTxOptions[T GormlikeDB[Remote], Remote any](opts *sql.TxOptions) ExecuterOption[T, Remote] {
+func WithTxOptions[T GormlikeDB[Remote], Remote any](
+	opts *sql.TxOptions,
+) ExecuterOption[T, Remote] {
 	return func(e *Executer[T, Remote]) {
 		e.txOpts = opts
 	}
 }
 
 // NewExecuter creates a new Executer
-func NewExecuter[T GormlikeDB[Remote], Remote any](db T, opts ...ExecuterOption[T, Remote]) Executer[T, Remote] {
+func NewExecuter[T GormlikeDB[Remote], Remote any](
+	db T,
+	opts ...ExecuterOption[T, Remote],
+) Executer[T, Remote] {
 	executer := Executer[T, Remote]{
 		db:     db,
 		txOpts: &sql.TxOptions{},

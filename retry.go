@@ -42,6 +42,7 @@ func DefaultRetry(backoffs []time.Duration, run func() error) error {
 
 	if err != nil {
 		merr = multierr.Append(merr, errors.Wrapf(err, "try %d", i))
+
 		return errors.Wrap(merr, "error not retryable or reached maximum number of retries")
 	}
 
