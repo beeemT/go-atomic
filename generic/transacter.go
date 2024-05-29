@@ -114,7 +114,7 @@ func (transacter Transacter[Remote, Resources]) Transact(
 						transacter.inSession(ctx, run),
 					)
 				}),
-			"new sqlx transaction",
+			"new transaction",
 		)
 	} else {
 		s, ok := session.(*Session[Remote])
@@ -124,7 +124,7 @@ func (transacter Transacter[Remote, Resources]) Transact(
 
 		err = errors.Wrap(
 			transacter.inSession(ctx, run)(s.Tx),
-			"using sqlx transaction from context",
+			"using transaction from context",
 		)
 	}
 

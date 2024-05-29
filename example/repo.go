@@ -36,11 +36,13 @@ func NewBarRepo(remote generic.SQLRemote) BarRepo {
 // Create creates a foo entity in the remote
 func (f FooRepo) Create(ctx context.Context, foo Foo) error {
 	_, err := f.remote.ExecContext(ctx, "INSERT INTO foo (id) VALUES ($1)", foo.ID)
+
 	return errors.Wrap(err, "inserting foo")
 }
 
 // Create creates a bar entity in the remote
 func (b BarRepo) Create(ctx context.Context, bar Bar) error {
 	_, err := b.remote.ExecContext(ctx, "INSERT INTO bar (id) VALUES ($1)", bar.ID)
+
 	return errors.Wrap(err, "inserting bar")
 }
