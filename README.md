@@ -2,6 +2,22 @@
 
 A package enabling go business layers to define blocks of code accessing remote systems in a sql-transaction like way. Essentially this allows the use of the Unit of Work pattern with go repositories.
 
+## What is go-atomic?
+
+`go-atomic` provides a straightforward way to implement the [Unit of Work pattern](https://martinfowler.com/eaaCatalog/unitOfWork.html) in your Go applications. This is particularly useful when your business logic involves multiple steps that need to be performed atomically (i.e., either they all succeed, or they all fail, leaving the system in a consistent state).
+
+For example, imagine transferring money between two bank accounts. This involves two separate operations: debiting one account and crediting another. If the credit operation fails after the debit has already succeeded, you'll have inconsistent data. `go-atomic` helps you group these operations into a single transactional block, ensuring that they are all committed to the database together or rolled back if any single operation fails.
+
+### Core Concepts
+
+`go-atomic` is built around a few core concepts:
+
+*   **Transacter**: The central component of the library. It orchestrates the transaction, ensuring that all operations within a `Transact` block are executed within the same database transaction.
+*   **Executor**: Manages the lifecycle of a transaction (begin, commit, rollback). `go-atomic` provides several executors for different database libraries, including standard `database/sql`, `sqlx`, and `gorm`.
+*   **Repository**: Your data access layer. These are the components that query and modify your database. With `go-atomic`, you design your repositories to work with a transactional object provided by the `Transacter`.
+*   **Resources**: A simple struct that groups all the repositories that need to participate in the transaction.
+*   **Resource Factory**: A function that you provide. Its job is to create an instance of your `Resources` struct, initializing all repositories with the same transaction object. This ensures that all your repositories share the same transaction.
+
 ## Installation
 
 ```shell
@@ -10,70 +26,162 @@ $ go get -u github.com/beeemT/go-atomic
 
 ## Usage
 
-1. Choose the appropriate executor for your datasource.
-2. Open the data source as usual.
-3. Create an executor with the data source.
-4. Create a function which generates new resource/repository instances from the provided remote interface (eg [generic sql remote](generic/remotes.go)).
-5. Create a new transacter with the executor and generation function.
-6. Perform the data source interaction within the transacter's Transact block.
+Using `go-atomic` involves the following steps, which correspond to the numbered comments in the example above:
 
-It is most useful to put interactions with services which do not allow the use of
-transactions at the and of the transact block. This yields consistency between the
-systems in more scenarios.
+1.  **Define your entities**: These are the plain Go structs that map to your database tables.
 
-Since Transact allows automatic retries (depending on executor and the transacter options) it is a
-good practice (if possible) to implement idempotency keys in remote systems if they do not allow
-the use of transactions (using keys which are not generated within a Transact block).
+2.  **Define your repositories**: A repository encapsulates the data access logic for a single entity. Each repository should be designed to work with a `generic.SQLRemote`, which allows it to be used in a transaction.
 
-Since these transact blocks (depending on interactions with remote systems) might result in longer
-running transactions this can lead to contention on the data source. It is generally a good practice
-to implement optional row locking on reading data which will later be updated in the Transact block.
-One such example would be cockroachdb's / postgresql's 'SELECT ... FOR UPDATE'.
+3.  **Define a `Resources` struct**: This struct acts as a container for all the repositories that will participate in a single transaction.
+
+4.  **Create a resource factory function**: This function is responsible for creating an instance of your `Resources` struct. `go-atomic` will invoke this function and pass it the underlying transaction object, ensuring all your repositories share the same transaction.
+
+5.  **Create an `Executor` and a `Transacter`**: The `Executor` is created from your database connection (e.g., `*sql.DB`). The `Transacter` is then created with the `Executor` and your resource factory function.
+
+6.  **Execute your business logic within a `Transact` block**: The `Transacter.Transact()` method takes a function where you can safely use your repositories. `go-atomic` guarantees that all database operations within this block will be committed or rolled back atomically. If the function returns an error, the transaction is rolled back; otherwise, it's committed.
 
 ## Example
+
+Here is a complete, runnable example that demonstrates how to use `go-atomic`.
+
 ```go
-// Choose whichever executor fits your use case
-sqlDb, err := stdlibsql.Open("postgres", "postgresql://user:password@localhost:5432/dbname")
-if err != nil {
-	panic(err)
-}
+package main
 
-executor := sql.NewExecuter(sqlDb)
+import (
+	"context"
+	"database/sql"
+	"fmt"
 
-guard := generic.NewTransacter[generic.SQLRemote, Resources](
-	executor,
-	resourcesFactory,
+	"github.com/beeemT/go-atomic/generic"
+	gosql "github.com/beeemT/go-atomic/generic/sql"
+	"github.com/pkg/errors"
+	_ "github.com/mattn/go-sqlite3"
 )
 
-err = guard.Transact(context.TODO(), func(ctx context.Context, resources Resources) error {
-	err := resources.Foos.Create(ctx, Foo{
-		ID: int(1),
-	})
+// 1. Define your entities
+// These are the data structures that represent your database records.
+
+type Foo struct {
+	ID int
+}
+
+type Bar struct {
+	ID int
+}
+
+// 2. Define your repositories
+// Repositories are responsible for the persistence logic. They are designed to work
+// with a generic.SQLRemote, which can be either a standard sql.DB or a sql.Tx.
+
+type FooRepo struct {
+	remote generic.SQLRemote
+}
+
+func NewFooRepo(remote generic.SQLRemote) *FooRepo {
+	return &FooRepo{remote: remote}
+}
+
+func (r *FooRepo) Create(ctx context.Context, foo Foo) error {
+	_, err := r.remote.ExecContext(ctx, "INSERT INTO foo (id) VALUES ($1)", foo.ID)
+	return errors.Wrap(err, "inserting foo")
+}
+
+type BarRepo struct {
+	remote generic.SQLRemote
+}
+
+func NewBarRepo(remote generic.SQLRemote) *BarRepo {
+	return &BarRepo{remote: remote}
+}
+
+func (r *BarRepo) Create(ctx context.Context, bar Bar) error {
+	_, err := r.remote.ExecContext(ctx, "INSERT INTO bar (id) VALUES ($1)", bar.ID)
+	return errors.Wrap(err, "inserting bar")
+}
+
+// 3. Define a Resources struct
+// This struct holds all the repositories that will participate in the transaction.
+
+type Resources struct {
+	Foos *FooRepo
+	Bars *BarRepo
+}
+
+// 4. Create a resource factory function
+// This function initializes your Resources struct. The Transacter will call this
+// function and pass in the transaction object (generic.SQLRemote).
+
+func resourceFactory(
+	_ context.Context,
+	_ *generic.Transacter[generic.SQLRemote, Resources],
+	tx generic.SQLRemote,
+) (Resources, error) {
+	return Resources{
+		Foos: NewFooRepo(tx),
+		Bars: NewBarRepo(tx),
+	}, nil
+}
+
+func main() {
+	// For this example, we'll use an in-memory SQLite database.
+	// In a real application, you would connect to your actual database (e.g., PostgreSQL).
+	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
-		return errors.Wrap(err, "creating foo")
+		panic(err)
+	}
+	defer db.Close()
+
+	// Create the necessary tables for the example.
+	if _, err := db.Exec(`CREATE TABLE foo (id INT)`); err != nil {
+		panic(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE bar (id INT)`); err != nil {
+		panic(err)
 	}
 
-	err = resources.Bars.Create(ctx, Bar{
-		ID: int(1),
+	// 5. Create an Executor and a Transacter
+	// The Executor wraps your database connection, and the Transacter orchestrates the transaction.
+	executor := gosql.NewExecuter(db)
+	transacter := generic.NewTransacter[generic.SQLRemote, Resources](executor, resourceFactory)
+
+	// 6. Execute your business logic within a Transact block
+	// The Transacter ensures that all operations inside this block are atomic.
+	err = transacter.Transact(context.Background(), func(ctx context.Context, r Resources) error {
+		fmt.Println("Creating foo...")
+		if err := r.Foos.Create(ctx, Foo{ID: 1}); err != nil {
+			return errors.Wrap(err, "failed to create foo")
+		}
+
+		fmt.Println("Creating bar...")
+		if err := r.Bars.Create(ctx, Bar{ID: 1}); err != nil {
+			return errors.Wrap(err, "failed to create bar")
+		}
+
+		// If this function returns an error, the transaction will be rolled back.
+		// If it returns nil, the transaction will be committed.
+		return nil
 	})
+
 	if err != nil {
-		return errors.Wrap(err, "creating bar")
+		panic(err)
 	}
 
-	// eg here we can do some more business logic, like payments or other things
-	// Foo and Bar only get committed if the payment was successful
-
-	return nil
-})
-
-if err != nil {
-	panic(err)
+	fmt.Println("Transaction committed successfully!")
 }
 ```
 
 See the [documentation][doc] for a complete API specification.
 
-For an example see the [example folder](example/transactor.go) of the relevant version.
+## Available Executors
+
+`go-atomic` provides several executors for popular database libraries:
+
+*   **[generic/sql](generic/sql/executor.go)**: For the standard `database/sql` package.
+*   **[generic/sqlx](generic/sqlx/sqlx.go)**: For `sqlx`.
+*   **[generic/gorm](generic/gorm/gorm.go)**: For `gorm`.
+*   **[generic/crdb](generic/crdb/crdb.go)**: For CockroachDB-specific transaction logic.
+
+You can choose the one that best fits your project's stack.
 
 ## Development Status
 
