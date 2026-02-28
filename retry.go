@@ -49,12 +49,35 @@ func DefaultRetry(backoffs []time.Duration, run func() error) error {
 	return nil
 }
 
+// errorCoder is satisfied by database driver error types that expose a numeric
+// error code (e.g., modernc.org/sqlite's *Error).
+type errorCoder interface {
+	Code() int
+}
+
+const (
+	sqliteBusy   = 5 // SQLITE_BUSY
+	sqliteLocked = 6 // SQLITE_LOCKED
+)
+
 func isRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+
 	switch {
 	case errors.Is(err, context.DeadlineExceeded),
 		errors.Is(err, net.ErrClosed),
 		errors.Is(err, os.ErrDeadlineExceeded):
 		return true
+	}
+
+	var coded errorCoder
+	if errors.As(err, &coded) {
+		switch coded.Code() {
+		case sqliteBusy, sqliteLocked:
+			return true
+		}
 	}
 
 	return false
