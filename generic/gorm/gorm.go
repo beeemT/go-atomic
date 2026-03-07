@@ -24,7 +24,7 @@ type (
 		Error() error
 	}
 
-	// Executer implements the [generic.Executer] interface for a sqlx db
+	// Executer implements the [generic.Executer] interface for a [GormlikeDB]
 	Executer[T GormlikeDB[Remote], Remote any] struct {
 		db     T
 		txOpts *sql.TxOptions
@@ -82,7 +82,7 @@ func (executer Executer[T, Remote]) Execute(_ context.Context, run func(Remote) 
 
 	db = db.Commit()
 	if db.Error() != nil {
-		return errors.Wrap(err, "committing gorm tx")
+		return errors.Wrap(db.Error(), "committing gorm tx")
 	}
 
 	return nil

@@ -13,8 +13,8 @@ import (
 )
 
 type (
-	// Transacter implements the Transacter interface for sqlx compatible databases.
-	// It flattens statements on nested uses of the Transact method into one sqlx transaction.
+	// Transacter implements the Transacter interface for remote executors implementing [Executer].
+	// It flattens statements on nested uses of the Transact method into one transaction.
 	Transacter[Remote any, Resources any] struct {
 		executer Executer[Remote]
 
@@ -89,7 +89,7 @@ func NewTransacter[Remote any, Resources any](
 	return transacter
 }
 
-// Transact will run run in a sqlx Session.
+// Transact will run run in a Session.
 // If a session is present in ctx at [atomic.SessionContextKey] it will use the existing session,
 // else it will create a new session and insert it into the context.
 // It does not support nested transactions, rather all statements are flattened into a single

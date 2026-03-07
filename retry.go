@@ -22,7 +22,7 @@ var DefaultBackoffs = []time.Duration{
 }
 
 // DefaultRetry is the default retry function for transacters.
-// It retries errors that are have one of the following errors in their chain:
+// It retries errors that have one of the following errors in their chain:
 // - context.DeadlineExceeded
 // - net.ErrClosed
 // - os.ErrDeadlineExceeded
